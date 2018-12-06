@@ -1,17 +1,16 @@
-# W7D3 - Lecture - CRUD with Express
+# W7D4 - Lecture - User authentication with Express
 
 ## Covered in this lecture
 
-- Request and response cycles between client and server
-- HTTP protocol: http statelessness, http verbs
-- Express, a nodejs Web framework
-- REST
+- HTTP Statelessness
+- Managing cookies
+- Use of cooke-parser, cookie-session, Bcrypt
 
 [Full Content of the lecture](./content.md)
 
 ## Demo
 
-We created a movie quotes app demonstrating the use of Express with RESTful routes.
+- We created a dev quotes app demonstrating how to authenticate the user with Express.
 
 ### To run the app
 

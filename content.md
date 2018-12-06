@@ -1,146 +1,88 @@
-#W2D3 - CRUD With Express
+# W2D4 - User Authentication with Express
 
-## We'll be covering
+## http is stateless
 
-- Request/Response Cycle
-- Why Express
-- REST and HTTP protocol
-- Demo
+What do we mean by statelessness ?
 
-## Requests
+- The server doesn't remember you
+- The server process every request like a new request
 
-### Client / Server request process
+what is state?
 
-- Communication is one way
+- Application state is server-side data which servers store to identify incoming client requests, their previous interaction details, and current context information.
+- Ex: login state, logout state
 
-  - The server cannot ask the client for anything
+### Benefits
 
-- part of the request
+- Scalability - no session related dependency
+- Less complex - less synchroniztion
+- Easier to chache
+- The server cannot lose track of information
 
-  - method
-  - url
+### Disadvantages
 
-- request has 2 parts
-  - header
-  - body
+- cannot easily keep track context
+- context has to provided each time
+- Good transactions. not good for conversations.
 
-![Request/Response](./pictures/http_request.png)
+## Using cookies to remember the user
 
-## Why Express?
+### How cookies work
 
-### Without Express
+- a cookie is a small text file that is stored by a browser on the user’s machine
 
-Without Express we would have to code at a much lower level. For example, we would have to decode the request and extract the url pattern using some regex and if statements.
+- a collection of key-value pairs that store information
+  - shopping-cart, game scores, ads, and logins
 
-Express handle all the basic functionalities for us and make our life much easier.
+`name=Linguini; style=classy;`
 
-You already experiment with node http module and it was way more work. [Node HTTP](https://nodejs.org/en/docs/guides/anatomy-of-an-http-transaction/)
+- The response header will set the cookie
 
-### What is Express?
+  Set-Cookie: <em>value</em>[; expires=<em>date</em>][; domain=<em>domain</em>][; path=<em>path</em>][; secure]
 
-- Express is a Web framework for NodeJS
-  - Routing
-  - Layer on top of node HTTP server
-  - Middleware
-  - Template Engine(ejs)
+- The browser will store the cookie
+- The browser will send the cookie in the request headers of subsequent requests
+- can be set for a specific domain
+- can have an expiration date, if not session cookie
 
-## Resources
+#### Cookie Security
 
-Resources for our movie quotes App
+- cookies are not secure
+- vulnerable to sniffing -> request is intercepted along the way. The captured cookie is then set manually
+- solution: https
+- cookie option
+  - secure -> ensure only https
+  - httpOnly -> prevents javascript to access cookies
 
-- quotes
-- comments
+### Using cookie-parser
 
-## CRUD Operation
+- We're going to store the user id in the cookies
+- We need to install a middleware in Express to process the cookie: cookie-parser
+  - setting the cookie: res.cookie('cookieName','cookieValue')
+  - reading the cookie: req.cookies.cookieName
 
-For each resource, we want to:
+## How can we secure cookies
 
-- create => creating a new resource
-- read => getting a resource
-- update => changing a resource
-- delete => deleting a resource
+- Cookies are stored in plain text in the browser
+- You can access it in developer tools
+- How can we prevent this?
+- Encrypted cookies
 
-## REST
+### Bcrypt
 
-Representational State Transfer
+- Bcrypt will hash the password with a salt to make it more resistant to attacks
+- Bcrypt will slow down the server. It should be async. Tricky!
 
-REST is a pattern, a convention to organize our url structure
+#### Difference between encrypted and hashing
 
-- It should use http verbs to expres what the request wants to accomplish
-- Resource information must be part of the url
-- It uses common data formats (JSON for API)
-- Communication is stateless
-- Each request must pass all information needed to fulfill the request
+##### Hash
 
-### http methods
+- turns a message into a combination of text + number + special characters
+- Hashing is a 1 way process. You cannot retrieve the original string from the hash
+- Useful for passwords
+- The password entered will be hashed and the 2 hashed will be compared
 
-What language does a client use to makes request to the server ? http
+##### Encryption
 
-http protocol gives us verbs
-
-- Create => Create a new ressource => Post
-- Read => Get a resource => Get
-- Update => Change a resource => Put
-- Delete => Delete a resource => Delete
-
-### Scoping information
-
-- collections vs single entity
-- which one?
-
-### Common Data Format
-
-In the case of an API, what do we expect when we do
-
-GET users => a list of users
-
-```
-[
-  {id: 1,
-  first_name: 'Clark',
-  last_name: 'Ken',
-  ...},
-  {id: 2,
-  first_name: 'Bruce',
-  last_name: 'Wayne',
-  ...},
-]
-```
-
-### Communication is stateless
-
-- The server doesn't remember the identity of the client that makes a request.
-- Does not remember the state on the server
-
-#### Why stateless
-
-If the server maintains information about the clients it needs to use memory. When the server needs to handle thousands of client, you need to add more servers. However, how do you communicate the state of all the clients between servers?
-
-Because servers does not maintain state information on clients, each request must pass all information needed to fulfill the request
-
-### End Points
-
-By following REST principles, it allows us to design our end points:
-
-| Action                                | http verb | end point                |
-| ------------------------------------- | --------- | ------------------------ |
-| List all quotes                       | GET       | get '/quotes'            |
-| Get a specific quote                  | GET       | get '/quotes/:id'        |
-| Display the new form                  | GET       | get '/quotes/new         |
-| Create a new quote                    | POST      | post '/quotes            |
-| Display the form for updating a quote | GET       | get '/quotes/:id/update' |
-| Update the quotes                     | PUT       | put '/quotes/:id         |
-| Deleting a specific user              | DELETE    | delete '/quotes:id'      |
-
-#### Nested Resources
-
-You may need to access a nested resources. For example, you need to create a new comment.
-
-| Action               | http verb | end point                  |
-| -------------------- | --------- | -------------------------- |
-| Create a new comment | POST      | post '/quotes/:id/comments |
-
-## Demo
-
-- creating the end points
-- using method override
+- Encryption turns data into a series of unreadable characters
+- Encrypted strings can be reversed if you have the key

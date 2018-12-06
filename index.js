@@ -201,16 +201,20 @@ app.get('/quotes', (req, res) => {
   res.render('quotes', { quotes, currentUser });
 });
 
+// LOOKUP FOR THE DATABASE CONTENT
 app.get('/quotes.json', (req, res) => {
   const quotes = Object.values(quoteList());
   res.json(quotes);
 });
 
 // DISPLAY THE FORM TO CREATE A NEW QUOTE
-// quote_new
 
 app.get('/quotes/new', (req, res) => {
-  res.render('quote_new');
+  // Retrieve the current user
+  const { userId } = req.session;
+  // const userId = req.session.userId;
+  const currentUser = users[userId];
+  res.render('quote_new', { currentUser });
 });
 
 // CREATE QUOTE
@@ -228,7 +232,11 @@ app.post('/quotes', (req, res) => {
 app.get('/quotes/:id/', (req, res) => {
   const { id } = req.params;
   const quote = quotesDb[id];
-  res.render('quote_show', { quote });
+  // Retrieve the current user
+  const { userId } = req.session;
+  // const userId = req.session.userId;
+  const currentUser = users[userId];
+  res.render('quote_show', { quote, currentUser });
 });
 
 // UPDATE A QUOTE
@@ -242,8 +250,12 @@ app.put('/quotes/:id', (req, res) => {
 // DISPLAY THE FORM TO CREATE A NEW COMMENT
 app.get('/quotes/:id/comments/new', (req, res) => {
   const { id: quoteId } = req.params;
+  // Retrieve the current user
+  const { userId } = req.session;
+  // const userId = req.session.userId;
+  const currentUser = users[userId];
 
-  res.render('comment_new', { quoteId });
+  res.render('comment_new', { quoteId, currentUser });
 });
 
 // CREATE A COMMENT
@@ -262,7 +274,11 @@ app.post('/quotes/:id/comments', (req, res) => {
 // DISPLAY THE FORM TO EDIT COMMENT
 app.get('/comments/:id/update', (req, res) => {
   const { id } = req.params;
-  res.render('comment_show', { content: quoteComments[id] });
+  // Retrieve the current user
+  const { userId } = req.session;
+  // const userId = req.session.userId;
+  const currentUser = users[userId];
+  res.render('comment_show', { content: quoteComments[id], currentUser });
 });
 
 // UPDATE THE COMMENT

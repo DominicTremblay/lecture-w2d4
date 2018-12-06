@@ -2,6 +2,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const uuidv4 = require('uuid/v4');
 const methodOverride = require('method-override');
+const cookieParser = require('cookie-parser');
+const cookieSession = require('cookie-session');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 const app = express();
 const port = 8080;
@@ -9,40 +13,55 @@ const port = 8080;
 app.use(express.static('public'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(methodOverride('_method'));
+// app.use(cookieParser());
+app.use(
+  cookieSession({
+    name: 'session',
+    keys: ['ManualLabor'],
+
+    // Cookie Options
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  })
+);
 
 const users = {
   'eb849b1f-4642-4c16-a77b-71ac2f90996f': {
     id: 'eb849b1f-4642-4c16-a77b-71ac2f90996f',
     name: 'Kent Cook',
     email: 'really.kent.cook@kitchen.com',
+    password: 'cookinglessons',
   },
   '1dc937ec-7d71-4f37-9560-eef9d998a9b7': {
     id: '1dc937ec-7d71-4f37-9560-eef9d998a9b7',
     name: 'Phil A. Mignon',
     email: 'good.philamignon@steak.com',
+    password: 'meatlover',
   },
 };
 
-const movieQuotesDb = {
+const quotesDb = {
   'd9424e04-9df6-4b76-86cc-9069ca8ee4bb': {
     id: 'd9424e04-9df6-4b76-86cc-9069ca8ee4bb',
-    quote: 'Why so serious?',
+    quote: 'It’s not a bug. It’s an undocumented feature!',
   },
   '27b03e95-27d3-4ad1-9781-f4556c1dee3e': {
     id: '27b03e95-27d3-4ad1-9781-f4556c1dee3e',
-    quote: 'YOU SHALL NOT PASS!',
+    quote:
+      'Software Developer” – An organism that turns caffeine into software',
   },
   '5b2cdbcb-7b77-4b23-939f-5096300e1100': {
     id: '5b2cdbcb-7b77-4b23-939f-5096300e1100',
-    quote: "It's called a hustle, sweetheart.",
+    quote:
+      'If debugging is the process of removing software bugs, then programming must be the process of putting them in',
   },
   '917d445c-e8ae-4ed9-8609-4bf305de8ba8': {
     id: '917d445c-e8ae-4ed9-8609-4bf305de8ba8',
-    quote: 'The greatest teacher, failure is.',
+    quote:
+      'A user interface is like a joke. If you have to explain it, it’s not that good.',
   },
   '4ad11feb-a76a-42ae-a1c6-8e30dc12c3fe': {
     id: '4ad11feb-a76a-42ae-a1c6-8e30dc12c3fe',
-    quote: 'Speak Friend and Enter',
+    quote: 'If at first you don’t succeed; call it version 1.0',
   },
 };
 
@@ -57,8 +76,8 @@ const quoteComments = {
 const quoteList = () => {
   const quotes = {};
 
-  for (const quoteId in movieQuotesDb) {
-    quotes[quoteId] = movieQuotesDb[quoteId];
+  for (const quoteId in quotesDb) {
+    quotes[quoteId] = quotesDb[quoteId];
     quotes[quoteId].comments = Object.keys(quoteComments)
       .filter(commentId => quoteComments[commentId].quoteId === quoteId)
       .map(commentId => quoteComments[commentId]);
@@ -83,13 +102,103 @@ function logPayload(req, res, next) {
   next();
 }
 
+function findUser(email) {
+  for (const userId in users) {
+    if (users[userId].email === email) {
+      return users[userId];
+    }
+  }
+  return false;
+}
+
+function authenticateUser(email, password) {
+  // for in
+
+  // filter
+  const [userId] = Object.keys(users).filter(
+    id =>
+      users[id].email === email &&
+      bcrypt.compareSync(password, users[id].password)
+  );
+
+  return userId;
+}
+
+function addNewUser(name, email, password) {
+  // create a new user object in db
+  const id = uuidv4();
+  const hash = bcrypt.hashSync(password, saltRounds);
+  users[id] = {
+    id,
+    name,
+    email,
+    password: hash,
+  };
+  console.log(users[id]);
+  return id;
+}
+
 // app.use(logPayload);
+
+app.get('/login', (req, res) => {
+  // Retrieve the current user
+  const { userId } = req.session;
+  // const userId = req.session.userId;
+  const currentUser = users[userId];
+  res.render('login', { currentUser });
+});
+
+app.post('/login', (req, res) => {
+  // get the info from the form
+  const { email, password } = req.body;
+  // Authenticate the user
+  const userId = authenticateUser(email, password);
+
+  // if authenticate
+  if (userId) {
+    req.session.userId = userId;
+    // set the cookie -> store the id
+    res.redirect('/quotes');
+  } else {
+    res.redirect('/login');
+  }
+});
+
+app.get('/register', (req, res) => {
+  const { userId } = req.session;
+  const currentUser = users[userId];
+  res.render('register', { currentUser });
+});
+
+app.post('/register', (req, res) => {
+  //Get data from the form
+  const { name, email, password } = req.body;
+  // check if user does't already exist
+  const user = findUser(email);
+
+  if (!user) {
+    // add new user
+    const userId = addNewUser(name, email, password);
+    // set cookie
+    req.session.userId = userId;
+    res.redirect('/quotes');
+  } else {
+    // redirect
+    res.status(401).send('User already exists!');
+  }
+});
 
 // DISPLAY A LIST OF QUOTES
 
 app.get('/quotes', (req, res) => {
   const quotes = Object.values(quoteList());
-  res.render('quotes', { quotes, user: null });
+
+  // Retrieve the current user
+  const { userId } = req.session;
+  // const userId = req.session.userId;
+  const currentUser = users[userId];
+
+  res.render('quotes', { quotes, currentUser });
 });
 
 app.get('/quotes.json', (req, res) => {
@@ -108,7 +217,7 @@ app.get('/quotes/new', (req, res) => {
 app.post('/quotes', (req, res) => {
   const { quote } = req.body;
   const id = uuidv4();
-  movieQuotesDb[id] = {
+  quotesDb[id] = {
     id,
     quote,
   };
@@ -118,7 +227,7 @@ app.post('/quotes', (req, res) => {
 // DISPLAY FORM TO EDIT QUOTE
 app.get('/quotes/:id/', (req, res) => {
   const { id } = req.params;
-  const quote = movieQuotesDb[id];
+  const quote = quotesDb[id];
   res.render('quote_show', { quote });
 });
 
@@ -126,7 +235,7 @@ app.get('/quotes/:id/', (req, res) => {
 app.put('/quotes/:id', (req, res) => {
   const { id } = req.params;
   const { quote } = req.body;
-  movieQuotesDb[id].quote = quote;
+  quotesDb[id].quote = quote;
   res.redirect('/quotes');
 });
 
@@ -169,7 +278,7 @@ app.put('/comments/:id', (req, res) => {
 // DELETE A QUOTE
 app.delete('/quotes/:id', (req, res) => {
   const { id } = req.params;
-  delete movieQuotesDb[id];
+  delete quotesDb[id];
   res.redirect('/quotes');
 });
 
@@ -178,6 +287,12 @@ app.delete('/comments/:id', (req, res) => {
   const { id } = req.params;
   delete quoteComments[id];
   res.redirect('/quotes');
+});
+
+// DELETE THE COOKIE
+app.delete('/login', (req, res) => {
+  req.session = null;
+  res.redirect('/login');
 });
 
 app.listen(port, () => console.log(`Express server running on port ${port}`));
